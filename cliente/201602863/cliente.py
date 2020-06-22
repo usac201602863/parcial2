@@ -23,12 +23,14 @@ def salas(fileName = 'salas.txt'):    # Lista de salas registradas
     return datos     # Se regresa una tupla porque no se deben editar los datos
 
 def usuario(fileName = 'usuario.txt'):    # Lista de salas registradas
+    datos=[]
     archivo = open(fileName,'r')    # Abre el archivo en modo de LECTURA
     for i in archivo:    # Lee cada linea del archivo
         linea = i     # Separa cada dato luego de una coma
         linea = linea.replace('\n', '')     # Se remplaza el ultimo salto de linea
+        datos.append(linea)
     archivo.close() #Cerrar el archivo al finalizar
-    return str(linea)    # Se regresa una tupla porque no se deben editar los datos
+    return datos    # Se regresa una tupla porque no se deben editar los datos
 
 def grabar(audio="archivo",d=1):    # Funcion para grabar audio
     #audio = str(datetime.datetime.now().ctime())    # Nombre de audio con timestamp
@@ -107,27 +109,43 @@ for i in range(len(usuarios())):    #Subscripcion a usuarios (topic,qos)
 def publishData(topic, value, retain = False):  # Funcion para publicar 
     client.publish(topic, value, QoS, retain)
 
-def sendCommand(command, retain = False):  # Funcion para publicar 
-    topic='comandos/'+str(Grupo)+'/'+usuario()
-    val=command+b'$'+usuario().encode("utf-8")
-    client.publish(topic, val, QoS, retain)
+def sendALIVE(delay=ALIVE_PERIOD, retain = False):  # Funcion para publicar
+    for i in range(100): 
+        topic="comandos"+'/'+str(Grupo)+'/'+usuario()[0]
+        print(topic)
+        val=ALIVE+b'$'+usuario()[0].encode("utf-8")    # EAMA Concatena caracteres en binario
+        client.publish(topic, val, QoS, retain)
+        logging.debug("Alive Enviado.")
+        time.sleep(delay) # EAMA Delay en segundos
 
-def sendFTR(command,Filsize, retain = False):  # Funcion para publicar 
-    topic='comandos/'+str(Grupo)+'/'+usuario()
-    val=command+b'$'+usuario().encode("utf-8")+b'$'+Filsize.encode("utf-8")
+def sendFTR(Filsize, retain = False):  # Funcion para publicar 
+    topic = 'comandos/'+str(Grupo)+'/'+usuario()[0]
+    val = FTR+b'$'+usuario()[0].encode("utf-8")+b'$'+Filsize.encode("utf-8")
     client.publish(topic, val, QoS, retain)
 
 ###################################################################################################3
 #               HILO PRINCIPAL
+
+AliveTh = threading.Thread(name = 'ALIVE',
+                        target = sendALIVE,
+                        args = (),
+                        daemon = True
+                        )
+
+AliveTh.start()
+logging.debug("Iniciando Hilo de Alive")
+
+
+
 DEFAULT_DELAY_2 = 0.5                                 #WAIG Tiempo 0.5 s
 User_ID = 201612200                                 #WAIG ID del cliente
 DEFAULT_DELAY = 30 #1 minuto
 
 #WAIG Subscripcion a los topic 
-client.subscribe(('usuarios/10/'+str(User_ID), 1))
+#client.subscribe(('usuarios/10/'+str(User_ID), 1))
 
 try:
-
+    
     #print(usuario().encode("utf-8"))
     #publishData("test","Mensaje Inicial pr80")
     #logging.info("Los datos han sido enviados al broker")            
@@ -149,9 +167,9 @@ try:
                 #publishData("test","Mensaje Inicial pr80")
                 #logging.info("Los datos han sido enviados al broker") 
                 print("¿A que usuario desea enviar el mensaje?:")           #WAIG Preguntamos a que usuario se quiere enviar el mensaje
-                leer_archivo("usuario.txt")                                 #WAIG leemos el archivo de usuario y lo despleguegamos
+                leer_archivo("usuarios.txt")                                 #WAIG leemos el archivo de usuario y lo despleguegamos
                 usuarioa = int(input('Ingrese el numero:'))
-                nusu = int(selec_usu_grup('usuario.txt',usuarioa))
+                nusu = int(selec_usu_grup('usuarios.txt',usuarioa))
                 topic = 'usuarios/'+str(Grupo)+'/'+ str(nusu)               #WAIG Se forma el topic para mandar el mensaje
                 client.loop_start()                                         #WAIG Conmenzamos a estar pendiente de mensajes entrantes
                 time.sleep(DEFAULT_DELAY_2)                                 #WAIG Esperamos 5 milisegundos para que aparezca el mensaje de la conexion al servidor
@@ -211,6 +229,8 @@ try:
             elif(opcion==6):    # Salir
                 # Matar todos los hilos
                 logging.warning("Terminando hilos...")
+                if AliveTh.is_alive():
+                    AliveTh.stop()
                 State=False
         else:
             print("\n [ERROR]Debe ingresar un numero para seleccionar una opcion.")

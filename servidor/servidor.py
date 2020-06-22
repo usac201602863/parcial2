@@ -1,3 +1,4 @@
+from configuracion import*
 from brokerData import * #Informacion de la conexion
 import paho.mqtt.client as mqtt
 import binascii
@@ -10,9 +11,13 @@ def on_connect(client, userdata, rc):   #Callback que se ejecuta cuando nos cone
     logging.info("Conectado al broker")
 
 def on_message(client, userdata, msg):  #Callback que se ejecuta cuando llega un mensaje al topic suscrito
-    #Se muestra en pantalla informacion que ha llegado
-    logging.info("Ha llegado el mensaje al topic: " + str(msg.topic))
-    logging.info("El contenido del mensaje es: " + str(msg.payload)+str(type(msg.payload)))
+    mensaje=msg.payload.split("$".encode("utf-8"))  # Se divide la informacion por el caracter especial
+    
+    if(mensaje[0]==ALIVE):  # Recibe en la trama un ALIVE
+        mensaje[1]=mensaje[1].decode("utf-8")
+        logging.debug("Ha llegado el mensaje al topic: " + str(msg.topic))
+        logging.debug("ALIVE recibido de: " + mensaje[1])
+        logging.debug(str(msg.payload))
     
     #Y se almacena en el log 
     logCommand = 'echo "(' + str(msg.topic) + ') -> ' + str(msg.payload) + '" >> ' + LOG_FILENAME
