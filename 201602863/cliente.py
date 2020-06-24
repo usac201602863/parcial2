@@ -9,6 +9,7 @@ import os               # Ejecutar comandos de terminal
 from brokerData import *
 salas = 'salas'
 usuarios = 'usuarios'
+Id_user = 'Usuario'
 
 class cliente(object): #LFMV se inicia la clase cliente
 
@@ -38,25 +39,28 @@ class cliente(object): #LFMV se inicia la clase cliente
         t = str(msg.topic) 
         tema = t.split('/') #LFMV Se separan los topic para verificar si es audio o es texto
         if tema[0] == "audio": #LFMV if para poder recibir los audios o recibir los mensajes
-                f = open('new.wav', 'wb')   #LFMV Abre el nuevo archivo
-                f.write(msg.payload)        # Escribe los archivo
-                f.close()                   # cerramos el archivo
-                logging.info("audio guardado")      #Mensaje de que se guardo bien el audio
-                self.hilo()                     # Inicia el hilo para la reproduccion
+            audio = str(datetime.datetime.now().ctime())    # EAMA Nombre de audio con timestamp
+            audio=audio.replace(" ","_")  #EAMA Eliminando espacios del nombre
+            f = open(audio+'.wav', 'wb')   #LFMV Abre el nuevo archivo
+            f.write(msg.payload)        # Escribe los archivo
+            f.close()                   # cerramos el archivo
+            logging.info("audio guardado")      #Mensaje de que se guardo bien el audio
+            self.hilo(audio)                     # Inicia el hilo para la reproduccion
         else:
             logging.info("El contenido del mensaje es: " + str(msg.payload)) #Muestra el mensaje de texto recibido
     
-    def hilo(self):                 #iniciamos hilo para recibir el hilo
+    def hilo(self,audio):                 #iniciamos hilo para recibir el hilo
         t1 = threading.Thread(name = 'reproducir audio',        #se configura el hilo
-                        target = self.reproducir,               #metodo a ejecutar
+                        target = self.reproducir(audio),               #metodo a ejecutar
                         args = (),                              #argumentos del hilo
                         daemon = False                          #el hilo se detendra cuando termine de ejecutar el metodo
                         )
         t1.start()                                              #inicializamos el hilo
+        t1.join()
         logging.debug("iniciando hilo") 
-    def reproducir(self):                                       #metodo para reproducir el audio
+    def reproducir(self,audio):                                       #metodo para reproducir el audio
         logging.info("Reproduciendo audio")
-        os.system('aplay new.wav')
+        os.system('aplay '+audio+'.wav')
         
     def Mqtttopic(self):                                        #Metodo para subscribirnos a las salas
         #Nos conectaremos a distintos topics:        
@@ -67,7 +71,12 @@ class cliente(object): #LFMV se inicia la clase cliente
             topic1 = "audio/10/"+str(i)
             topic2 = "texto/10/"+str(i)
             self.MqttSubs(topic1,topic2)                        #metodo que subscribe a los temas
-        self.MqttSubs("texto/10/"+str(ID_USER),"audio/10/"+str(ID_USER))        
+        file = open(Id_user,'r')
+    
+        ID_USER = str(file.readline(9))
+        file.close()
+        print(ID_USER+'id user')
+        self.MqttSubs("texto/10/"+ID_USER,"audio/10/"+ID_USER)        
         self.client.loop_start()
     def MqttSubs(self,topic1,topic2,qos = 2):
         self.client.subscribe([(topic1,qos),(topic2,qos)]) #comando para subscribirse a los topic
@@ -77,7 +86,7 @@ class cliente(object): #LFMV se inicia la clase cliente
         for linea in file.readlines():  #lista donde se guardaran las salas del usuario
             sala = linea.split('\n')    #quita los saltos de linea y guarda en una lista
             salas_sub.append(sala[0])   #guarda los datos en la lista
-            logging.debug("salas a las que se susbscribio: " + str(salas_sub))
+            #logging.debug("salas a las que se susbscribio: " + str(salas_sub))
         file.close()                    #cerramos el archivo lista
         return salas_sub                #regresa las salas a las que esta suscrito el usuario
     def loggingConfig(self):
@@ -90,26 +99,52 @@ class cliente(object): #LFMV se inicia la clase cliente
         self.client.loop_stop() #Se mata el hilo que verifica los topics en el fondo
         self.client.disconnect() #Se desconecta del broker
     def comando(self):                  #metodo para ingresar los comandp
-        a = str(input("Ingrese comando$sala:  " ))  #se ingresa comando para enviar texto o audio y la sala o usuario donde se manda
-        comannd = a.split('$')
-        if comannd[0] == '01':
-            self.grabar(comannd)
-        elif comannd[0] == '02':
-            self.enviartexto(comannd)
-    def grabar(self,comando):
+        logging.info("01 para enviar un audio \n 02 para enviar texto \n 03 exit")
+        a = str(input("Ingrese accion:  " ))  #se ingresa comando para enviar texto o audio y la sala o usuario donde se manda
+        #comannd = a.split('$')
+        self.mostrarusuarios()
+        if a == '01':
+            #logging.info("Enviar a salas o usarios ")
+            #sou = str(input("Sala-> a \n Usuarios->b "))
+            #if sou == 'a':
+            
+            logging.info("Salas o usuarios a enviar el audio")
+            salas = str(input("Separe las salas y usuarios con $: "))
+            self.grabar(salas)
+            #elif sou == 'b':
+            #    logging.info("Usuarios a enviar el audio")
+            #    salas = str(input("Separe los usuarios con $: "))
+            #    self.grabar(salas)
+        elif a == '02':
+            #logging.info("Enviar a salas o usarios ")
+            #sou = str(input("Sala-> a \n Usuarios->b "))
+            #if sou == 'a':
+            logging.info("Salas y usuarios a enviar el texto")
+            salas = str(input("Separe las salas y usuarios con $: "))
+            self.enviartexto(salas)
+            #elif sou == 'b':
+            #    logging.info("Usuarios a enviar el texto")
+            #    salas = str(input("Separe los usuarios con $: "))
+            #    self.enviartexto(salas)
+        elif a == '03':
+            self.exit()
+    def grabar(self,sala):
+
         d = input("ingrese duracion:  ")
         logging.info("Se grabara audio: " + str(d) + "s \n")
         logging.info('Comenzando grabacion\n')
         os.system('arecord -d '+d+' -f U8 -r 8000 audio.wav')
         logging.info('Grabacion finalizada, inicia reproduccion\n')
         os.system('aplay audio.wav')        
-        self.enviararchivo(comando)
+        self.enviararchivo(sala)
     def enviartexto(self,comando):
         msg = str(input("Ingrese mensaje:"))
         tt = "texto"
-        sala = comando[1]
-        topic = str(tt)+'/10/'+str(sala)
-        self.MqttPub(topic,msg)
+        salas = comando.split("$")
+        for i in range(len(salas)):
+            sala = salas[i]
+            topic = str(tt)+'/10/'+str(sala)
+            self.MqttPub(topic,msg)
         
     def enviararchivo(self,comando):
         logging.info("Enviar audio grabado\n")
@@ -119,23 +154,41 @@ class cliente(object): #LFMV se inicia la clase cliente
         
         byteArray = bytearray(imagestring)
         tf = "audio"
-        self.publicar(comando, byteArray,tf)
-        logging.info("\n\nArchivo enviado a: "+ str(comando[1]))
+        salas = comando.split("$")
+
+        for i in range(len(salas)):
+            self.publicar(salas[i], byteArray,tf)
+            logging.info("\n\nArchivo enviado a: "+ str(salas[i]))
     def publicar(self,comando,mensaje,tf):
-        sala = comando[1]
+        sala = comando
         topic = str(tf)+'/10/'+str(sala)
         self.MqttPub(topic,mensaje)
     def MqttPub(self,topic,mss):
         
         self.client.publish(topic, mss, qos = 0, retain = False)
         logging.debug("Publicado en:" + str(topic))
+    def exit(self):
+        self.cliente.closeMqtt()
+    def mostrarusuarios(self):
+        salas = self.leersalas()
+        usuarios = self.leerusuarios()
+        logging.info("Salas suscritas: "+str(salas))
+        logging.info("Usuarios: "+str(usuarios))
+    def leersalas(self): #lee el texto salas 
+        usuarios_sub = []          # crea una lista donde guardaremos las salas
+        file = open(usuarios, 'r') #abre el archivo salas
+        for linea in file.readlines():  #lista donde se guardaran las salas del usuario
+            sala = linea.split('\n')    #quita los saltos de linea y guarda en una lista
+            usuarios_sub.append(sala[0])   #guarda los datos en la lista
+            #logging.debug("salas a las que se susbscribio: " + str(salas_sub))
+        file.close()                    #cerramos el archivo lista
+        return usuarios_sub                #regresa las salas a las que esta suscrito el usuario
 
 cliente = cliente()
 
 try:
     while True:
         logging.debug("Iniciando ...")
-        time.sleep(3)
         cliente.comando()
 
 except KeyboardInterrupt:
