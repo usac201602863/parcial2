@@ -50,6 +50,7 @@ class cliente(object): #LFMV se inicia la clase cliente
             logging.info("El contenido del mensaje es: " + str(msg.payload)) #Muestra el mensaje de texto recibido
     
     def hilo(self,audio):                 #iniciamos hilo para recibir el hilo
+        logging.debug("iniciando hilo") 
         t1 = threading.Thread(name = 'reproducir audio',        #se configura el hilo
                         target = self.reproducir(audio),               #metodo a ejecutar
                         args = (),                              #argumentos del hilo
@@ -57,7 +58,7 @@ class cliente(object): #LFMV se inicia la clase cliente
                         )
         t1.start()                                              #inicializamos el hilo
         t1.join()
-        logging.debug("iniciando hilo") 
+
     def reproducir(self,audio):                                       #metodo para reproducir el audio
         logging.info("Reproduciendo audio")
         os.system('aplay '+audio+'.wav')
@@ -129,12 +130,15 @@ class cliente(object): #LFMV se inicia la clase cliente
         elif a == '03':
             self.exit()
     def grabar(self,sala):
-
-        d = input("ingrese duracion:  ")
-       
+        while(True):
+            d = int(input("ingrese duracion:  "))
+            if d > 30:
+                logging.info("Duracion mayor a 30 segundos")
+            else:
+                break       
         logging.info("Se grabara audio: " + str(d) + "s \n")
         logging.info('Comenzando grabacion\n')
-        os.system('arecord -d '+d+' -f U8 -r 8000 audio.wav')
+        os.system('arecord -d '+str(d)+' -f U8 -r 8000 audio.wav')
         logging.info('Grabacion finalizada, inicia reproduccion\n')
         os.system('aplay audio.wav')        
         self.enviararchivo(sala)
