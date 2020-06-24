@@ -131,6 +131,7 @@ class cliente(object): #LFMV se inicia la clase cliente
     def grabar(self,sala):
 
         d = input("ingrese duracion:  ")
+       
         logging.info("Se grabara audio: " + str(d) + "s \n")
         logging.info('Comenzando grabacion\n')
         os.system('arecord -d '+d+' -f U8 -r 8000 audio.wav')
@@ -174,12 +175,12 @@ class cliente(object): #LFMV se inicia la clase cliente
         usuarios = self.leerusuarios()
         logging.info("Salas suscritas: "+str(salas))
         logging.info("Usuarios: "+str(usuarios))
-    def leersalas(self): #lee el texto salas 
+    def leerusuarios(self): #lee el texto salas 
         usuarios_sub = []          # crea una lista donde guardaremos las salas
         file = open(usuarios, 'r') #abre el archivo salas
         for linea in file.readlines():  #lista donde se guardaran las salas del usuario
-            sala = linea.split('\n')    #quita los saltos de linea y guarda en una lista
-            usuarios_sub.append(sala[0])   #guarda los datos en la lista
+            usuario = linea.split('\n')    #quita los saltos de linea y guarda en una lista
+            usuarios_sub.append(usuario[0])   #guarda los datos en la lista
             #logging.debug("salas a las que se susbscribio: " + str(salas_sub))
         file.close()                    #cerramos el archivo lista
         return usuarios_sub                #regresa las salas a las que esta suscrito el usuario
